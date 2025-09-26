@@ -22,12 +22,14 @@
   },
   "peerDependencies": {
     "react": ">=18",
-    "react-dom": ">=18"
+    "react-dom": ">=18",
+    "jotai": ">=2"
   },
   "devDependencies": {
     "vite": "^5.4.0",
     "eslint": "^8.57.0",
-    "eslint-plugin-react": "^7.35.0"
+    "eslint-plugin-react": "^7.35.0",
+    "jotai": "^2.8.3"
   },
   "license": "MIT"
 }
