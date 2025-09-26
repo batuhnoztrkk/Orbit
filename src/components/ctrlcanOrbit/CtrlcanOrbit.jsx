@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
-import { OrbitProvider } from './TourContext.js';
+import { OrbitProvider } from './TourContext.jsx';
 import { Backdrop } from './Backdrop.jsx';
 import { Spotlight } from './Spotlight.jsx';
 import { Tooltip } from './Tooltip.jsx';

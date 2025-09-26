@@ -7,20 +7,50 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Dependencies / build outputs
 node_modules
 dist
 dist-ssr
 *.local
 
-# Editor directories and files
+# Env files (secrets)
+.env
+.env.*.local
+
+# Caches / tooling
+.eslintcache
+.cache
+.pnpm-store
+.turbo
+.jest/
+.nyc_output
+.node_repl_history
+
+# Package manager configs that may contain tokens
+.npmrc
+
+# Yarn v2+ (enable only if you use Yarn Berry)
+.yarn/*
+!.yarn/releases
+!.yarn/plugins
+!.yarn/sdks
+!.yarn/versions
+
+# Editors / OS
 .vscode/*
 !.vscode/extensions.json
 .idea
 .DS_Store
+Thumbs.db
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+
+# Coverage & reports
 coverage
 reports
+
+# Pack artifacts
+*.tgz
