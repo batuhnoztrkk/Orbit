@@ -1,0 +1,33 @@
+{
+  "name": "@ctrlcan/orbit",
+  "version": "0.0.1",
+  "description": "CtrlCan Orbit — cross-page, themeable React site tour.",
+  "type": "module",
+  "main": "dist/orbit.cjs",
+  "module": "dist/orbit.esm.js",
+  "exports": {
+    ".": {
+      "import": "./dist/orbit.esm.js",
+      "require": "./dist/orbit.cjs"
+    }
+  },
+  "files": ["dist", "src"],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js",
+    "cov": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --coverage --runInBand",
+    "re": "rm -rf node_modules package-lock.json dist && npm install && npm run build && npm version patch --force && npm publish --registry=https://gitcan.kalecanbazoglu.synology.me/api/packages/Ctrlcan/npm/",
+    "pub": "npm run build && npm version patch --no-git-tag-version --no-commit-hooks  && npm publish --registry=https://gitcan.kalecanbazoglu.synology.me/api/packages/Ctrlcan/npm/"
+  },
+  "peerDependencies": {
+    "react": ">=18",
+    "react-dom": ">=18"
+  },
+  "devDependencies": {
+    "vite": "^5.4.0",
+    "eslint": "^8.57.0",
+    "eslint-plugin-react": "^7.35.0"
+  },
+  "license": "MIT"
+}

@@ -1,0 +1,195 @@
+pipeline {
+  agent { label 'ceviz' }
+
+  environment {
+    NPM_AUTH_TOKEN = credentials('gitea_canbaz_token')
+  }
+
+  options {
+    buildDiscarder(logRotator(numToKeepStr: '5'))
+    disableConcurrentBuilds()
+    timestamps()
+  }
+
+  stages {
+
+    stage('Checkout') {
+      steps {
+        echo '📦 Checkout...'
+        checkout scm
+      }
+    }
+
+    stage('Docker Cache Temizliği') {
+      steps {
+        echo '🧹 Docker cache temizleniyor...'
+        sh 'docker builder prune -f || true'
+      }
+    }
+    stage('Unit Tests & Coverage') {
+      steps {
+        echo '🧪 Test image build + npm run test...'
+
+        // Host-side clean, owned by Jenkins user
+        sh '''
+          rm -rf reports coverage || true
+          mkdir -p reports coverage
+        '''
+
+        // Build the test image (contains source + deps)
+        sh '''
+          docker build --build-arg TOKEN=$NPM_AUTH_TOKEN -t ctrlcan-orbit-test .
+        '''
+
+        // Run tests inside container; write outputs to bind-mounted folders
+        sh '''
+          docker run --rm --name ctrlcan_orbit_test_run \
+            -u $(id -u):$(id -g) \
+            -e CI=true \
+            -e NODE_AUTH_TOKEN="${NPM_AUTH_TOKEN}" \
+            -e JEST_JUNIT_OUTPUT_DIR="reports" \
+            -e JEST_JUNIT_OUTPUT_NAME="junit.xml" \
+            -e JEST_JUNIT_ADD_FILE_ATTRIBUTE="true" \
+            -v "$PWD/reports:/app/reports" \
+            -v "$PWD/coverage:/app/coverage" \
+            ctrlcan-orbit-test \
+            sh -lc 'npm test -- --ci --reporters=default --reporters=jest-junit --coverage --coverageDirectory /app/coverage'
+        '''
+
+        // Sanity check: show what got produced
+        sh '''
+          echo "==== reports/ ===="
+          ls -lah reports || true
+          echo "==== coverage/ ===="
+          ls -lah coverage || true
+        '''
+      }
+      post {
+        always {
+          script {
+            junit testResults: 'reports/**/*.xml', allowEmptyResults: true, skipPublishingChecks: true
+
+            if (fileExists('coverage/lcov-report/index.html')) {
+              publishHTML(target: [
+                reportDir: 'coverage/lcov-report',
+                reportFiles: 'index.html',
+                reportName: 'Coverage Report',
+                keepAll: true,
+                alwaysLinkToLastBuild: true
+              ])
+            } else if (fileExists('coverage/index.html')) {
+              publishHTML(target: [
+                reportDir: 'coverage',
+                reportFiles: 'index.html',
+                reportName: 'Coverage Report',
+                keepAll: true,
+                alwaysLinkToLastBuild: true
+              ])
+            } else {
+              echo 'ℹ️ Coverage HTML bulunamadı. Jest/coverage ayarlarını kontrol et.'
+            }
+
+            archiveArtifacts artifacts: 'reports/**/*, coverage/**/*', allowEmptyArchive: true, fingerprint: true
+          }
+        }
+        success {
+          publishChecks name: 'Test Check',
+            title: 'Tests Passed',
+            summary: 'All unit tests passed.',
+            text: '✔ Lint + test succeeded.'
+        }
+        failure {
+          publishChecks name: 'Test Check',
+            title: 'Tests Failed',
+            summary: 'Some or all tests failed.',
+            text: '❌ Check coverage or lint errors.',
+            conclusion: 'FAILURE'
+        }
+      }
+    }
+
+
+    stage('Build Docker Image') {
+      when { branch 'main' }
+      steps {
+        echo '🏗️ Docker build (production)...'
+        sh '''
+          docker build --build-arg TOKEN=$NPM_AUTH_TOKEN -t ctrlcan-orbit-build .
+        '''
+      }
+      post {
+        success {
+          publishChecks name: 'Build Check',
+                        title: 'Build Successful',
+                        summary: 'Docker image built.',
+                        text: '✔ Image: ctrlcan-orbit-build'
+        }
+        failure {
+          publishChecks name: 'Build Check',
+                        title: 'Build Failed',
+                        summary: 'Docker build error.',
+                        text: '❌ Check build logs.',
+                        conclusion: 'FAILURE'
+        }
+      }
+    }
+
+    stage('Publish to Gitea Registry') {
+      when { branch 'main' }
+      steps {
+        echo '📦 Publishing to Gitea npm registry...'
+        // NOTE: single-quoted Groovy string → $NPM_AUTH_TOKEN is expanded by the shell, not Groovy
+        sh '''
+          NPM_REG="https://gitcan.kalecanbazoglu.synology.me/api/packages/Ctrlcan/npm/"
+
+          docker run --rm \
+            -e NODE_AUTH_TOKEN="$NPM_AUTH_TOKEN" \
+            ctrlcan-orbit-build \
+            sh -lc "umask 077; cat > ~/.npmrc <<'RC'
+    @ctrlcan:registry=${NPM_REG}
+    //gitcan.kalecanbazoglu.synology.me/api/packages/Ctrlcan/npm/:_authToken=${NODE_AUTH_TOKEN}
+    always-auth=true
+    RC
+    npm whoami --registry=\\"$NPM_REG\\" || true
+    npm publish --registry=\\"$NPM_REG\\"
+    shred -u ~/.npmrc || rm -f ~/.npmrc"
+        '''
+      }
+      post {
+        success {
+          publishChecks name: 'Publish Check',
+            title: 'Publish Step Completed',
+            summary: 'Registry publish ran without crash.',
+            text: '✔ Published or skipped (if already exists).'
+        }
+        failure {
+          publishChecks name: 'Publish Check',
+            title: 'Publish Failed',
+            summary: 'npm publish failed.',
+            text: '❌ Check registry and logs.',
+            conclusion: 'FAILURE'
+        }
+      }
+    }
+
+
+    stage('Cleanup Docker') {
+      steps {
+        echo '🧼 Cleanup unused images...'
+        sh 'docker image prune -f || true'
+      }
+    }
+  }
+
+  post {
+    success { echo '🎉 Pipeline başarıyla tamamlandı.' }
+    failure { echo '💥 Pipeline başarısız oldu.' }
+    always {
+      publishChecks name: 'Pipeline Check',
+                    title: 'Pipeline Completed',
+                    summary: 'All steps processed.',
+                    text: '✅ See checks above for status.',
+                    detailsURL: 'https://plugins.jenkins.io/gitea-checks/#plugin-content-build-status-check'
+    }
+  }
+}
