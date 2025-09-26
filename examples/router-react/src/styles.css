@@ -1,0 +1,12 @@
+:root { color-scheme: dark light; font-family: system-ui, sans-serif; }
+body { margin: 0; }
+.header { display:flex; gap:16px; align-items:center; justify-content:space-between; padding:12px 16px; border-bottom:1px solid #e5e7eb; }
+.actions { display:flex; gap:10px; align-items:center; }
+a { text-decoration:none; padding:6px 10px; border-radius:8px; }
+a.active { background:#111827; color:#fff; }
+.content { padding:16px; }
+.card { border:1px solid #e5e7eb; border-radius:12px; padding:12px; max-width:560px; background:#fff; }
+@media (prefers-color-scheme: dark) {
+  .card { background:#0b0f14; color:#e5e7eb; border-color:#1f2937; }
+  .header { border-color:#1f2937; }
+}
