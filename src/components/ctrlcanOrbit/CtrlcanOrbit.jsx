@@ -1,15 +1,16 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import { OrbitProvider } from './TourContext.js';
 import { Backdrop } from './Backdrop.jsx';
 import { Spotlight } from './Spotlight.jsx';
 import { Tooltip } from './Tooltip.jsx';
+import { LiveAnnouncer } from './LiveAnnouncer.jsx';
 import { PortalMount } from './PortalMount.jsx';
 import styles from './CtrlcanOrbit.module.css';
 import { stepsAtom, optionsAtom, runtimeAtom, currentIndexAtom } from './atoms.js';
-import { waitForTarget, isRouteMatch } from './useStepRegistry.js';
+import { waitForTarget, waitForSelector, isRouteMatch } from './useStepRegistry.js';
 import { createRouterBridge } from './RouterBridge.js';
-import { createI18n } from '../../i18n/index.js'; // NEW
+import { createI18n } from '../../i18n/index.js';
 
 function OrbitInner({ steps: inSteps, options = {}, onFinish, onCancel }) {
   const [steps, setSteps] = useAtom(stepsAtom);
@@ -19,12 +20,27 @@ function OrbitInner({ steps: inSteps, options = {}, onFinish, onCancel }) {
   const router = useMemo(() => createRouterBridge(), []);
   const targetRef = useRef(null);
   const uiRootRef = useRef(null);
+  const openerRef = useRef(null);              // NEW
+  const [path, setPath] = useState(router.getPath()); // NEW
 
   useEffect(() => { setSteps(inSteps || []); }, [inSteps, setSteps]);
   useEffect(() => { setOpts(prev => ({ ...prev, ...options })); }, [options, setOpts]);
-
-  // i18n instance
   const { t } = useMemo(() => createI18n(options?.i18n), [options?.i18n]);
+
+  // track SPA navigation
+  useEffect(() => {
+    const un = router.listen((p) => setPath(p));
+    return () => un && un();
+  }, [router]);
+
+  // opener focus: aktifleştiği an kaydet, kapanınca geri ver
+  useEffect(() => {
+    if (rt.active && !openerRef.current) openerRef.current = document.activeElement || null;
+    if (!rt.active && openerRef.current) {
+      const el = openerRef.current; openerRef.current = null;
+      try { el?.focus && el.focus(); } catch {}
+    }
+  }, [rt.active]);
 
   // load persisted & resume
   useEffect(() => {
@@ -44,31 +60,80 @@ function OrbitInner({ steps: inSteps, options = {}, onFinish, onCancel }) {
     try { localStorage.setItem(key, JSON.stringify(rt)); } catch {}
   }, [rt, options]);
 
+  // navigation helpers (memoized)
+  const goTo = useCallback((id) => {
+    setRt(s => ({ ...s, active: true, currentStepId: id, visited: Array.from(new Set([...(s.visited||[]), id])) }));
+  }, [setRt]);
+
+  const goNext = useCallback(() => {
+    const next = steps[idx + 1];
+    if (next) goTo(next.id);
+    else { onFinish?.(); setRt(s => ({ ...s, active: false, currentStepId: undefined })); }
+  }, [steps, idx, goTo, onFinish, setRt]);
+
+  const goPrev = useCallback(() => {
+    const prev = steps[idx - 1];
+    if (prev) goTo(prev.id);
+  }, [steps, idx, goTo]);
+
+  const handleClose = useCallback(() => {
+    onCancel?.(); setRt(s => ({ ...s, active: false, currentStepId: undefined }));
+  }, [onCancel, setRt]);
+
+  // ensure route for current step
   useEffect(() => {
     if (!rt.active) return;
     const step = steps[idx];
     if (!step) return;
-    const path = router.getPath();
-    if (typeof step.route === 'string' && !isRouteMatch(step.route, path)) router.push(step.route);
-  }, [rt.active, idx, steps, router]);
+    const cur = router.getPath();
+    if (typeof step.route === 'string' && !isRouteMatch(step.route, cur)) router.push(step.route);
+  }, [rt.active, idx, steps, router, path]);
 
+  // resolve target & onMissing behavior & advance.by
   useEffect(() => {
     let cancelled = false;
+    let detach = null;
+
     (async () => {
       if (!rt.active) return;
       const step = steps[idx];
       if (!step) return;
-      const el = await waitForTarget(step, { timeout: 8000, interval: 120 });
+
+      // try primary target
+      let el = await waitForTarget(step, { timeout: options?.wait?.timeoutMs ?? 8000, interval: options?.wait?.intervalMs ?? 120 });
+
+      if (!el) {
+        const beh = step?.onMissing?.behavior || 'skip';
+        if (beh === 'fallbackSelector' && step?.onMissing?.fallbackSelector) {
+          el = await waitForSelector(step.onMissing.fallbackSelector, { timeout: options?.wait?.timeoutMs ?? 8000, interval: options?.wait?.intervalMs ?? 120 });
+        }
+        if (!el) {
+          if (beh === 'skip') { if (!cancelled) goNext(); return; }
+          if (beh === 'halt') { targetRef.current = null; return; }
+        }
+      }
+
       if (cancelled) return;
-      targetRef.current = el;
+      targetRef.current = el || null;
+
+      // scroll into view
       try {
         const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
         el?.scrollIntoView({ behavior: reduced ? 'auto' : (options?.wait?.scroll ?? 'smooth'), block: 'center', inline: 'center' });
       } catch {}
-    })();
-    return () => { cancelled = true; };
-  }, [rt.active, idx, steps, options]);
 
+      // advance.by = clickTarget
+      if (el && step?.advance?.by === 'clickTarget') {
+        const onClick = (e) => { e.preventDefault(); e.stopPropagation(); goNext(); };
+        el.addEventListener('click', onClick, true);
+        detach = () => el.removeEventListener('click', onClick, true);
+      }
+    })();
+
+    return () => { cancelled = true; if (detach) detach(); };
+  }, [rt.active, idx, steps, options, goNext]);
+
+  // click guard: sadece target veya UI portal tıklanabilir
   useEffect(() => {
     if (!rt.active) return;
     const onClickCapture = (e) => {
@@ -88,6 +153,7 @@ function OrbitInner({ steps: inSteps, options = {}, onFinish, onCancel }) {
     };
   }, [rt.active]);
 
+  // keyboard
   useEffect(() => {
     if (!rt.active) return;
     const onKey = (e) => {
@@ -102,16 +168,7 @@ function OrbitInner({ steps: inSteps, options = {}, onFinish, onCancel }) {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [rt.active, idx, steps, options]); // eslint-disable-line
-
-  const goTo = (id) => setRt(s => ({ ...s, active: true, currentStepId: id, visited: Array.from(new Set([...(s.visited||[]), id])) }));
-  const goNext = () => {
-    const next = steps[idx + 1];
-    if (next) goTo(next.id);
-    else { onFinish?.(); setRt(s => ({ ...s, active: false, currentStepId: undefined })); }
-  };
-  const goPrev = () => { const prev = steps[idx - 1]; if (prev) goTo(prev.id); };
-  const handleClose = () => { onCancel?.(); setRt(s => ({ ...s, active: false, currentStepId: undefined })); };
+  }, [rt.active, goNext, goPrev, handleClose, options]);
 
   if (!rt.active) return null;
   const step = steps[idx];
@@ -124,9 +181,12 @@ function OrbitInner({ steps: inSteps, options = {}, onFinish, onCancel }) {
     close: step?.labels?.close ?? options?.tooltip?.labels?.close ?? t('close')
   };
 
+  const liveMessage = `${step?.title ? step.title + ' — ' : ''}${typeof step?.content === 'string' ? step.content : ''}`;
+
   return (
     <PortalMount>
       <div ref={uiRootRef} className={styles.uiRoot} aria-hidden="false">
+        <LiveAnnouncer message={liveMessage} />
         <Backdrop blur={options?.backdrop?.blur ?? 6} opacity={options?.backdrop?.opacity ?? 0.45} />
         {!isModal && (
           <Spotlight
