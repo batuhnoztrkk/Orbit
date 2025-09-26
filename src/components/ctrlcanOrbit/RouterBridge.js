@@ -1,13 +1,17 @@
-/**
- * Summary: Basit router köprüsü. Gerekirse proje router'ına uyarlanır.
- */
+import { patchHistoryOnce } from './history.js';
+
 export function createRouterBridge() {
+  patchHistoryOnce();
   const getPath = () => (typeof window !== 'undefined' ? window.location.pathname : '/');
-  const push = (path) => { if (typeof window !== 'undefined' && path && getPath() !== path) window.location.assign(path); };
+  const push = (path) => {
+    if (typeof window === 'undefined') return;
+    if (!path) return;
+    if (getPath() !== path) window.history.pushState({}, '', path);
+  };
   const listen = (cb) => {
-    const handler = () => cb(getPath());
-    window.addEventListener('popstate', handler);
-    return () => window.removeEventListener('popstate', handler);
+    const h = () => cb(getPath());
+    window.addEventListener('locationchange', h);
+    return () => window.removeEventListener('locationchange', h);
   };
   return { getPath, push, listen };
 }
