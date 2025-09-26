@@ -13,8 +13,71 @@
   z-index: var(--orbit-z);
 }
 
-.blocker {
+.spotlight {
+  position: fixed;
+  box-shadow: 0 0 0 9999px rgba(0,0,0,0.55); /* dışı karart */
+  outline: 2px solid rgba(255,255,255,.9);
+  pointer-events: none;
+  z-index: calc(var(--orbit-z) + 1);
+}
+
+.uiRoot {
   position: fixed;
   inset: 0;
-  z-index: calc(var(--orbit-z) + 1);
+  z-index: calc(var(--orbit-z) + 2);
+  pointer-events: none; /* UI içinde enable edeceğiz */
+}
+
+.tooltip {
+  position: absolute;
+  background: #111827;
+  color: #fff;
+  border-radius: 12px;
+  padding: 12px 12px 10px;
+  border: 1px solid rgba(255,255,255,.08);
+  box-shadow: 0 12px 28px rgba(0,0,0,.35);
+  min-width: 260px;
+  max-width: 420px;
+  pointer-events: auto; /* tıklanabilir */
+}
+
+.tooltipActions {
+  margin-top: 10px;
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.btn, .btnGhost {
+  border-radius: 10px;
+  padding: 6px 10px;
+  font-size: 13px;
+  border: 1px solid rgba(255,255,255,.18);
+  background: #0076ff;
+  color: #fff;
+  cursor: pointer;
+}
+
+.btnGhost { background: transparent; color: #cbd5e1; }
+
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--orbit-z) + 3);
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+.modal {
+  background: #0b0f14;
+  color: #fff;
+  border-radius: 16px;
+  width: min(720px, 92vw);
+  max-height: 86vh;
+  overflow: auto;
+  padding: 16px 16px 12px;
+  border: 1px solid rgba(255,255,255,.06);
+  box-shadow: 0 20px 60px rgba(0,0,0,.5);
+  pointer-events: auto; /* tıklanabilir */
 }
