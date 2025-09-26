@@ -1,0 +1,20 @@
+:root {
+  --orbit-backdrop-color: #000000;
+  --orbit-backdrop-opacity: 0.45;
+  --orbit-z: 9999;
+}
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: var(--orbit-backdrop-color);
+  opacity: var(--orbit-backdrop-opacity);
+  backdrop-filter: blur(6px);
+  z-index: var(--orbit-z);
+}
+
+.blocker {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--orbit-z) + 1);
+}
