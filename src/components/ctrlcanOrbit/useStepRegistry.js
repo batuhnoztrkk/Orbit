@@ -44,3 +44,16 @@ export function isRouteMatch(stepRoute, currentPath) {
   if (stepRoute instanceof RegExp) return stepRoute.test(currentPath);
   return String(stepRoute) === String(currentPath);
 }
+
+export async function waitForSelector(selector, cfg = {}) {
+  const timeout = cfg.timeout ?? 8000;
+  const interval = cfg.interval ?? 120;
+  const t0 = Date.now();
+  while (Date.now() - t0 <= timeout) {
+    const el = document.querySelector(selector);
+    if (el) return el;
+    // eslint-disable-next-line no-await-in-loop
+    await new Promise(r => setTimeout(r, interval));
+  }
+  return null;
+}
