@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef, useId } from 'react';
 import styles from './CtrlcanOrbit.module.css';
 
 /**
@@ -31,6 +31,9 @@ export function Tooltip({
 }) {
   const ref = useRef(null);
   const prevFocusRef = useRef(null);
+  const titleId = useId();
+  const bodyId = useId();
+
 
   // Positioning (tooltip)
   useLayoutEffect(() => {
@@ -103,8 +106,8 @@ export function Tooltip({
 
   const BodyShell = ({ children }) => (
     <>
-      {title ? <div className={mode === 'modal' ? styles.modalTitle : styles.tooltipTitle}>{title}</div> : null}
-      <div className={mode === 'modal' ? styles.modalBody : styles.tooltipBody}>{children}</div>
+      {title ? <div id={titleId} className={mode === 'modal' ? styles.modalTitle : styles.tooltipTitle}>{title}</div> : null}
+      <div id={bodyId} className={mode === 'modal' ? styles.modalBody : styles.tooltipBody}>{children}</div>
       {footer ? <div className={mode === 'modal' ? styles.modalFooter : styles.tooltipFooter}>{footer}</div> : null}
     </>
   );
@@ -119,7 +122,7 @@ export function Tooltip({
 
   if (mode === 'modal') {
     return (
-      <div className={styles.modalOverlay} aria-modal="true" role="dialog" aria-label="Tour dialog">
+      <div className={styles.modalOverlay} aria-modal="true" role="dialog" aria-labelledby={title ? titleId : undefined} aria-describedby={bodyId}>
         <div ref={ref} className={styles.modal}>
           <BodyShell>{content}</BodyShell>
           {!footer && <Buttons />}
@@ -129,7 +132,15 @@ export function Tooltip({
   }
 
   return (
-    <div ref={ref} role="tooltip" className={styles.tooltip} style={{ width }} aria-live="polite">
+    <div
+      ref={ref}
+      role="tooltip"
+      className={styles.tooltip}
+      style={{ width }}
+      aria-labelledby={title ? titleId : undefined}
+      aria-describedby={bodyId}
+      aria-live="polite"
+    >
       <BodyShell>{content}</BodyShell>
       {!footer && <Buttons />}
     </div>
