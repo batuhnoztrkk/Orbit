@@ -9,22 +9,22 @@ import styles from './CtrlcanOrbit.module.css';
 import { stepsAtom, optionsAtom, runtimeAtom, currentIndexAtom } from './atoms.js';
 import { waitForTarget, isRouteMatch } from './useStepRegistry.js';
 import { createRouterBridge } from './RouterBridge.js';
+import { createI18n } from '../../i18n/index.js'; // NEW
 
-/**
- * @param {{ steps: import('./atoms.js').OrbitStep[], options?: any, onFinish?:()=>void, onCancel?:()=>void }} props
- */
 function OrbitInner({ steps: inSteps, options = {}, onFinish, onCancel }) {
   const [steps, setSteps] = useAtom(stepsAtom);
   const [rt, setRt] = useAtom(runtimeAtom);
   const setOpts = useSetAtom(optionsAtom);
   const idx = useAtomValue(currentIndexAtom);
   const router = useMemo(() => createRouterBridge(), []);
-  const targetRef = useRef(/** @type {Element|null} */(null));
+  const targetRef = useRef(null);
   const uiRootRef = useRef(null);
 
-  // init steps & options
   useEffect(() => { setSteps(inSteps || []); }, [inSteps, setSteps]);
   useEffect(() => { setOpts(prev => ({ ...prev, ...options })); }, [options, setOpts]);
+
+  // i18n instance
+  const { t } = useMemo(() => createI18n(options?.i18n), [options?.i18n]);
 
   // load persisted & resume
   useEffect(() => {
@@ -37,39 +37,30 @@ function OrbitInner({ steps: inSteps, options = {}, onFinish, onCancel }) {
         setRt(s => ({ ...s, active: true, currentStepId: saved.currentStepId, visited: saved.visited || [] }));
       }
     } catch {}
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, []); // eslint-disable-line
 
-  // persist on change
   useEffect(() => {
     const key = (options?.storage?.userKey ? `${options.storage.userKey}:` : '') + (options?.storage?.key ?? 'ctrlcan:orbit:v1');
     try { localStorage.setItem(key, JSON.stringify(rt)); } catch {}
   }, [rt, options]);
 
-  // ensure route for current step
   useEffect(() => {
     if (!rt.active) return;
     const step = steps[idx];
     if (!step) return;
     const path = router.getPath();
-    if (typeof step.route === 'string' && !isRouteMatch(step.route, path)) {
-      router.push(step.route);
-    }
+    if (typeof step.route === 'string' && !isRouteMatch(step.route, path)) router.push(step.route);
   }, [rt.active, idx, steps, router]);
 
-  // resolve target & scroll into view
   useEffect(() => {
     let cancelled = false;
     (async () => {
       if (!rt.active) return;
       const step = steps[idx];
       if (!step) return;
-
       const el = await waitForTarget(step, { timeout: 8000, interval: 120 });
       if (cancelled) return;
       targetRef.current = el;
-
-      // scroll into view (reduced motion saygılı)
       try {
         const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
         el?.scrollIntoView({ behavior: reduced ? 'auto' : (options?.wait?.scroll ?? 'smooth'), block: 'center', inline: 'center' });
@@ -78,24 +69,18 @@ function OrbitInner({ steps: inSteps, options = {}, onFinish, onCancel }) {
     return () => { cancelled = true; };
   }, [rt.active, idx, steps, options]);
 
-  // click guard: sadece hedef VEYA UI portal içi tıklanabilir
   useEffect(() => {
     if (!rt.active) return;
-
     const onClickCapture = (e) => {
       const target = targetRef.current;
       const uiRoot = uiRootRef.current;
       const insideUI = uiRoot && uiRoot.contains(e.target);
       const insideTarget = target && target.contains(e.target);
-      if (!insideUI && !insideTarget) {
-        e.preventDefault(); e.stopPropagation();
-      }
+      if (!insideUI && !insideTarget) { e.preventDefault(); e.stopPropagation(); }
     };
-
     document.addEventListener('click', onClickCapture, true);
     document.addEventListener('mousedown', onClickCapture, true);
     document.addEventListener('pointerdown', onClickCapture, true);
-
     return () => {
       document.removeEventListener('click', onClickCapture, true);
       document.removeEventListener('mousedown', onClickCapture, true);
@@ -103,39 +88,29 @@ function OrbitInner({ steps: inSteps, options = {}, onFinish, onCancel }) {
     };
   }, [rt.active]);
 
-  // keyboard shortcuts
   useEffect(() => {
     if (!rt.active) return;
     const onKey = (e) => {
       const tag = (e.target && e.target.tagName) || '';
       const editable = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (e.target?.isContentEditable);
       if (editable) return;
-
-      if (e.key === (options?.navigation?.keybinds?.next ?? 'ArrowRight')) {
-        e.preventDefault(); goNext();
-      } else if (e.key === (options?.navigation?.keybinds?.prev ?? 'ArrowLeft')) {
-        e.preventDefault(); goPrev();
-      } else if (options?.navigation?.escToClose !== false && e.key === 'Escape') {
-        e.preventDefault(); handleClose();
-      }
+      const nextKey = options?.navigation?.keybinds?.next ?? 'ArrowRight';
+      const prevKey = options?.navigation?.keybinds?.prev ?? 'ArrowLeft';
+      if (e.key === nextKey) { e.preventDefault(); goNext(); }
+      else if (e.key === prevKey) { e.preventDefault(); goPrev(); }
+      else if (options?.navigation?.escToClose !== false && e.key === 'Escape') { e.preventDefault(); handleClose(); }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rt.active, idx, steps, options]);
+  }, [rt.active, idx, steps, options]); // eslint-disable-line
 
   const goTo = (id) => setRt(s => ({ ...s, active: true, currentStepId: id, visited: Array.from(new Set([...(s.visited||[]), id])) }));
   const goNext = () => {
-    const i = idx;
-    const next = steps[i + 1];
+    const next = steps[idx + 1];
     if (next) goTo(next.id);
     else { onFinish?.(); setRt(s => ({ ...s, active: false, currentStepId: undefined })); }
   };
-  const goPrev = () => {
-    const i = idx;
-    const prev = steps[i - 1];
-    if (prev) goTo(prev.id);
-  };
+  const goPrev = () => { const prev = steps[idx - 1]; if (prev) goTo(prev.id); };
   const handleClose = () => { onCancel?.(); setRt(s => ({ ...s, active: false, currentStepId: undefined })); };
 
   if (!rt.active) return null;
@@ -143,10 +118,14 @@ function OrbitInner({ steps: inSteps, options = {}, onFinish, onCancel }) {
   if (!step) return null;
 
   const isModal = step?.modal?.enabled === true;
+  const labels = {
+    next: step?.labels?.next ?? options?.tooltip?.labels?.next ?? t('next'),
+    prev: step?.labels?.prev ?? options?.tooltip?.labels?.prev ?? t('prev'),
+    close: step?.labels?.close ?? options?.tooltip?.labels?.close ?? t('close')
+  };
 
   return (
     <PortalMount>
-      {/* UI root (tooltip/modal) */}
       <div ref={uiRootRef} className={styles.uiRoot} aria-hidden="false">
         <Backdrop blur={options?.backdrop?.blur ?? 6} opacity={options?.backdrop?.opacity ?? 0.45} />
         {!isModal && (
@@ -162,8 +141,10 @@ function OrbitInner({ steps: inSteps, options = {}, onFinish, onCancel }) {
           target={targetRef.current}
           width={options?.tooltip?.width ?? 360}
           placement={options?.tooltip?.placement ?? 'auto'}
-          labels={options?.tooltip?.labels ?? { next: 'Next', prev: 'Back', close: 'Close' }}
+          labels={labels}
+          title={step?.title ?? options?.modal?.title ?? undefined}
           content={step.content}
+          footer={step?.footer ?? options?.modal?.footer ?? undefined}
           onNext={goNext}
           onPrev={goPrev}
           onClose={handleClose}

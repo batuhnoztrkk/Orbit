@@ -2,14 +2,15 @@ import { useEffect, useLayoutEffect, useRef } from 'react';
 import styles from './CtrlcanOrbit.module.css';
 
 /**
- * Summary: Hedefe tutunan tooltip ya da merkezde modal.
  * @param {{
  *  mode: 'tooltip'|'modal',
  *  target: Element|null,
  *  width?: number,
  *  placement?: 'top'|'right'|'bottom'|'left'|'auto',
- *  labels?: { next:string, prev:string, close:string },
+ *  labels?: { next?:string, prev?:string, close?:string },
+ *  title?: any,
  *  content: any,
+ *  footer?: any,
  *  onNext: ()=>void,
  *  onPrev: ()=>void,
  *  onClose: ()=>void
@@ -20,8 +21,10 @@ export function Tooltip({
   target,
   width = 360,
   placement = 'auto',
-  labels = { next: 'Next', prev: 'Back', close: 'Close' },
+  labels = {},
+  title,
   content,
+  footer,
   onNext,
   onPrev,
   onClose
@@ -29,7 +32,7 @@ export function Tooltip({
   const ref = useRef(null);
   const prevFocusRef = useRef(null);
 
-  // position tooltip
+  // Positioning (tooltip)
   useLayoutEffect(() => {
     if (mode !== 'tooltip') return;
     if (!target || !ref.current) return;
@@ -54,7 +57,6 @@ export function Tooltip({
         top = r.top + r.height / 2 - el.offsetHeight / 2;
         left = r.left - el.offsetWidth - gap;
       }
-      // clamp
       top = Math.max(10, Math.min(top, vh - el.offsetHeight - 10));
       left = Math.max(10, Math.min(left, vw - el.offsetWidth - 10));
       el.style.top = `${top}px`;
@@ -62,22 +64,16 @@ export function Tooltip({
     };
 
     const tryAuto = () => {
-      // basit auto: öncelik bottom→top→right→left
       const sides = ['bottom', 'top', 'right', 'left'];
-      for (const s of sides) {
-        place(s);
-        const { top, left } = el.getBoundingClientRect();
-        if (top >= 0 && left >= 0) return;
-      }
+      for (const s of sides) { place(s); }
     };
 
-    if (placement === 'auto') tryAuto();
-    else place(placement);
+    if (placement === 'auto') tryAuto(); else place(placement);
   }, [mode, target, placement]);
 
-  // focus trap (modal/tooltip UI içinde)
+  // Focus trap + restore
   useEffect(() => {
-    const container = mode === 'modal' ? ref.current : ref.current;
+    const container = ref.current;
     if (!container) return;
 
     prevFocusRef.current = document.activeElement;
@@ -93,11 +89,8 @@ export function Tooltip({
       if (list.length === 0) return;
       const first = list[0];
       const last = list[list.length - 1];
-      if (e.shiftKey && document.activeElement === first) {
-        e.preventDefault(); last.focus();
-      } else if (!e.shiftKey && document.activeElement === last) {
-        e.preventDefault(); first.focus();
-      }
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
     };
 
     container.addEventListener('keydown', onKeyDown);
@@ -106,37 +99,39 @@ export function Tooltip({
       const prev = prevFocusRef.current;
       if (prev && prev.focus) prev.focus();
     };
-  }, [mode]);
+  }, []);
+
+  const BodyShell = ({ children }) => (
+    <>
+      {title ? <div className={mode === 'modal' ? styles.modalTitle : styles.tooltipTitle}>{title}</div> : null}
+      <div className={mode === 'modal' ? styles.modalBody : styles.tooltipBody}>{children}</div>
+      {footer ? <div className={mode === 'modal' ? styles.modalFooter : styles.tooltipFooter}>{footer}</div> : null}
+    </>
+  );
+
+  const Buttons = () => (
+    <div className={styles.tooltipActions}>
+      <button type="button" className={styles.btn} onClick={onPrev}>{labels.prev}</button>
+      <button type="button" className={styles.btn} onClick={onNext}>{labels.next}</button>
+      <button type="button" className={styles.btnGhost} onClick={onClose} aria-label="Close">{labels.close}</button>
+    </div>
+  );
 
   if (mode === 'modal') {
     return (
       <div className={styles.modalOverlay} aria-modal="true" role="dialog" aria-label="Tour dialog">
         <div ref={ref} className={styles.modal}>
-          <div>{content}</div>
-          <div className={styles.tooltipActions}>
-            <button type="button" className={styles.btn} onClick={onPrev}>{labels.prev}</button>
-            <button type="button" className={styles.btn} onClick={onNext}>{labels.next}</button>
-            <button type="button" className={styles.btnGhost} onClick={onClose} aria-label="Close">{labels.close}</button>
-          </div>
+          <BodyShell>{content}</BodyShell>
+          {!footer && <Buttons />}
         </div>
       </div>
     );
   }
 
   return (
-    <div
-      ref={ref}
-      role="tooltip"
-      className={styles.tooltip}
-      style={{ width }}
-      aria-live="polite"
-    >
-      <div>{content}</div>
-      <div className={styles.tooltipActions}>
-        <button type="button" className={styles.btn} onClick={onPrev}>{labels.prev}</button>
-        <button type="button" className={styles.btn} onClick={onNext}>{labels.next}</button>
-        <button type="button" className={styles.btnGhost} onClick={onClose} aria-label="Close">{labels.close}</button>
-      </div>
+    <div ref={ref} role="tooltip" className={styles.tooltip} style={{ width }} aria-live="polite">
+      <BodyShell>{content}</BodyShell>
+      {!footer && <Buttons />}
     </div>
   );
 }

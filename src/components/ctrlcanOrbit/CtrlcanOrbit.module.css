@@ -81,3 +81,30 @@
   box-shadow: 0 20px 60px rgba(0,0,0,.5);
   pointer-events: auto; /* tıklanabilir */
 }
+
+.tooltipTitle {
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.tooltipBody { }
+
+.tooltipFooter {
+  margin-top: 10px;
+}
+
+.modalTitle {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+.modalBody { }
+
+.modalFooter {
+  margin-top: 14px;
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
