@@ -1,58 +1,17 @@
-import React, { useEffect, useState } from 'react';
-import { CtrlcanOrbit, useOrbit } from '@ctrlcan/orbit';
-
-function Nav() {
-  const go = (path) => {
-    if (window.location.pathname !== path) {
-      window.history.pushState({}, '', path);
-      window.dispatchEvent(new Event('locationchange')); // history patch yakalayacak
-    }
-  };
-  const path = window.location.pathname;
-  return (
-    <nav className="nav">
-      <button className={path==='/dashboard'?'active':''} onClick={() => go('/dashboard')}>Dashboard</button>
-      <button className={path==='/products'?'active':''} onClick={() => go('/products')}>Products</button>
-    </nav>
-  );
-}
-
-function PageSwitch() {
-  const [path, setPath] = useState(window.location.pathname);
-  useEffect(() => {
-    const h = () => setPath(window.location.pathname);
-    window.addEventListener('locationchange', h);
-    window.addEventListener('popstate', h);
-    return () => { window.removeEventListener('locationchange', h); window.removeEventListener('popstate', h); };
-  }, []);
-  if (path === '/products') return (await import('./pages/Products.jsx')).default();
-  // basit render için dynamic import yerine koşullu import yapmayalım:
-  return path === '/products'
-    ? React.createElement((await import('./pages/Products.jsx')).default)
-    : React.createElement((await import('./pages/Dashboard.jsx')).default);
-}
-
-// Basit synchronous çözüm (dynamic import yerine):
+import React from 'react';
+import { Routes, Route, NavLink, useNavigate } from 'react-router-dom';
 import Dashboard from './pages/Dashboard.jsx';
 import Products from './pages/Products.jsx';
-function Pages() {
-  const [path, setPath] = useState(window.location.pathname);
-  useEffect(() => {
-    const h = () => setPath(window.location.pathname);
-    window.addEventListener('locationchange', h);
-    window.addEventListener('popstate', h);
-    return () => { window.removeEventListener('locationchange', h); window.removeEventListener('popstate', h); };
-  }, []);
-  return path === '/products' ? <Products /> : <Dashboard />;
-}
+import { CtrlcanOrbit, useOrbit } from '@ctrlcan/orbit';
 
 export default function App() {
   const tour = useOrbit();
+  const nav = useNavigate();
 
   const steps = [
-    { id: 's1', route: '/dashboard', dataTour: 'sales_metric', title: 'Dashboard', content: 'Sales metrics are highlighted here.' },
-    { id: 's2', route: '/products', dataTour: 'product_list', title: 'Products', content: 'This is your product list.', advance: { by: 'clickTarget' } },
-    { id: 's3', modal: { enabled: true }, title: 'All set', content: 'You can close the tour now.' }
+    { id: 's1', route: '/dashboard', dataTour: 'sales_metric', title: 'Dashboard', content: 'Sales metric on this page.' },
+    { id: 's2', route: '/products', dataTour: 'product_list', title: 'Products', content: 'Here is the product list.', advance: { by: 'clickTarget' } },
+    { id: 's3', modal: { enabled: true }, title: 'Done', content: 'Tour finished.' }
   ];
 
   return (
@@ -60,24 +19,27 @@ export default function App() {
       <CtrlcanOrbit
         steps={steps}
         options={{
-          i18n: { locale: 'tr' },           // otomatik yerine TR
+          i18n: { locale: 'en' },
           resumeOnLoad: true,
-          storage: { key: 'ctrlcan:orbit:example:spa', userKey: 'USER-1' },
+          storage: { key: 'ctrlcan:orbit:example:router', userKey: 'USER-2' },
           backdrop: { blur: 8, opacity: 0.5 },
-          tooltip: { width: 360, placement: 'auto' },
-          spotlight: { padding: 12, borderRadius: 12 }
+          tooltip: { width: 380, placement: 'auto' }
         }}
       />
       <header className="header">
-        <h1>ctrlcan-orbit • spa-basic</h1>
+        <h1>ctrlcan-orbit • router-react</h1>
         <div className="actions">
-          <button onClick={() => { if (window.location.pathname !== '/dashboard') history.pushState({}, '', '/dashboard'); window.dispatchEvent(new Event('locationchange')); }}>Go /dashboard</button>
-          <button onClick={() => tour.start('s1')}>Start Tour</button>
+          <NavLink to="/dashboard">Dashboard</NavLink>
+          <NavLink to="/products">Products</NavLink>
+          <button onClick={() => { nav('/dashboard'); tour.start('s1'); }}>Start Tour</button>
         </div>
       </header>
-      <Nav />
       <main className="content">
-        <Pages />
+        <Routes>
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/products" element={<Products />} />
+        </Routes>
       </main>
     </>
   );
