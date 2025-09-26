@@ -1,6 +1,6 @@
 /**
- * Summary: pushState/replaceState/popup için tek seferlik history patch; 'locationchange' event'ini yayar.
- * Side-effects: window.history metodlarını wrap'ler, window'a event atar.
+ * Summary: pushState/replaceState/popstate yakalayıp 'locationchange' olayı yayar.
+ * Side-effects: window.history metodlarını wrap'ler.
  */
 export function patchHistoryOnce() {
   if (typeof window === 'undefined') return;
