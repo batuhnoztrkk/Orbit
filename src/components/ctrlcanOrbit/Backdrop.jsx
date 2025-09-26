@@ -1,13 +1,16 @@
 import styles from './CtrlcanOrbit.module.css';
 
 /**
- * Summary: Blur + koyulaştırma katmanı.
- * @param {{ blur?:number, opacity?:number }} props
+ * Modal modunda arka planı karartan/blur'layan overlay.
  */
-export function Backdrop({ blur = 6, opacity = 0.45 }) {
+export function Backdrop({ blur = 8, opacity = 0.55, backgroundImage }) {
   const style = {
+    '--orbit-dim-opacity': String(opacity),
+    WebkitBackdropFilter: `blur(${blur}px)`,
     backdropFilter: `blur(${blur}px)`,
-    opacity
+    backgroundImage: backgroundImage ? `url(${backgroundImage})` : undefined,
+    backgroundSize: backgroundImage ? 'cover' : undefined,
+    backgroundPosition: backgroundImage ? 'center' : undefined
   };
-  return <div className={styles.backdrop} style={style} aria-hidden="true" />;
+  return <div className={styles.backdrop} style={style} />;
 }

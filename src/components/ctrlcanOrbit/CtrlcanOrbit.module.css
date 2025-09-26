@@ -1,110 +1,79 @@
-:root {
-  --orbit-backdrop-color: #000000;
-  --orbit-backdrop-opacity: 0.45;
-  --orbit-z: 9999;
+:root{
+  --orbit-z: 999999999999999999999999999999999999999999999999999999999999999999999999999999990;
+  --orbit-dim-opacity: 0.6;
 }
 
-.backdrop {
-  position: fixed;
-  inset: 0;
-  background: var(--orbit-backdrop-color);
-  opacity: var(--orbit-backdrop-opacity);
-  backdrop-filter: blur(6px);
-  z-index: var(--orbit-z);
+/* KÖK */
+.uiRoot{
+  position:fixed; inset:0;
+  z-index:calc(var(--orbit-z)+10);
+  pointer-events:none;
 }
 
-.spotlight {
-  position: fixed;
-  box-shadow: 0 0 0 9999px rgba(0,0,0,0.55); /* dışı karart */
-  outline: 2px solid rgba(255,255,255,.9);
-  pointer-events: none;
-  z-index: calc(var(--orbit-z) + 1);
+/* BACKDROP (yalnız modal) */
+.backdrop{
+  position:fixed; inset:0;
+  z-index:calc(var(--orbit-z)+11);
+  background:rgba(0,0,0,var(--orbit-dim-opacity));
+  backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+  pointer-events:none;
 }
 
-.uiRoot {
-  position: fixed;
-  inset: 0;
-  z-index: calc(var(--orbit-z) + 2);
-  pointer-events: none; /* UI içinde enable edeceğiz */
+/* SPOTLIGHT: iki katman (blur+dim), ikisi de delik açar */
+.spotlightBlur{
+  position:fixed; inset:0;
+  z-index:calc(var(--orbit-z)+12);
+  backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+  pointer-events:none;
+  will-change: clip-path, backdrop-filter;
+  contain: paint;
 }
 
-.tooltip {
-  position: absolute;
-  background: #111827;
-  color: #fff;
-  border-radius: 12px;
-  padding: 12px 12px 10px;
-  border: 1px solid rgba(255,255,255,.08);
-  box-shadow: 0 12px 28px rgba(0,0,0,.35);
-  min-width: 260px;
-  max-width: 420px;
-  pointer-events: auto; /* tıklanabilir */
+.spotlightDim{
+  position:fixed; inset:0;
+  z-index:calc(var(--orbit-z)+13);
+  background:rgba(0,0,0,var(--orbit-dim-opacity));
+  pointer-events:none;
+  will-change: clip-path;
+  contain: paint;
 }
 
-.tooltipActions {
-  margin-top: 10px;
-  display: flex;
-  gap: 8px;
-  justify-content: flex-end;
+/* TOOLTIP ve MODAL en üstte kalır */
+.tooltip{
+  position:absolute;
+  background:#111827; color:#fff;
+  border-radius:12px; padding:12px 12px 10px;
+  border:1px solid rgba(255,255,255,.08);
+  box-shadow:0 12px 28px rgba(0,0,0,.35);
+  min-width:260px; max-width:420px;
+  pointer-events:auto;
+  z-index:calc(var(--orbit-z)+14);
 }
+.tooltipHeader{display:flex;align-items:center;justify-content:flex-start;}
+.tooltipTitle{font-size:14px;font-weight:700;margin-bottom:8px;}
+.tooltipBody{}
+.tooltipFooter{margin-top:10px;}
+.tooltipActions{display:flex;gap:8px;margin-top:10px;}
+.btn{background:#0ea5e9;color:#fff;border:0;border-radius:8px;padding:6px 10px;}
+.btnGhost{background:transparent;color:#cbd5e1;border:1px solid #334155;border-radius:8px;padding:6px 10px;}
 
-.btn, .btnGhost {
-  border-radius: 10px;
-  padding: 6px 10px;
-  font-size: 13px;
-  border: 1px solid rgba(255,255,255,.18);
-  background: #0076ff;
-  color: #fff;
-  cursor: pointer;
+.modalOverlay{
+  position:fixed; inset:0;
+  z-index:calc(var(--orbit-z)+15);
+  display:grid; place-items:center;
+  pointer-events:none;
 }
-
-.btnGhost { background: transparent; color: #cbd5e1; }
-
-.modalOverlay {
-  position: fixed;
-  inset: 0;
-  z-index: calc(var(--orbit-z) + 3);
-  display: grid;
-  place-items: center;
-  pointer-events: none;
+.modal{
+  background:#0b0f14; color:#fff;
+  border-radius:16px; width:min(720px,92vw); max-height:86vh; overflow:auto;
+  padding:16px 16px 12px; border:1px solid rgba(255,255,255,.06);
+  box-shadow:0 20px 60px rgba(0,0,0,.5);
+  pointer-events:auto;
+  background-size:cover; background-position:center; background-repeat:no-repeat;
+  z-index:calc(var(--orbit-z)+16);
 }
-
-.modal {
-  background: #0b0f14;
-  color: #fff;
-  border-radius: 16px;
-  width: min(720px, 92vw);
-  max-height: 86vh;
-  overflow: auto;
-  padding: 16px 16px 12px;
-  border: 1px solid rgba(255,255,255,.06);
-  box-shadow: 0 20px 60px rgba(0,0,0,.5);
-  pointer-events: auto; /* tıklanabilir */
-}
-
-.tooltipTitle {
-  font-size: 14px;
-  font-weight: 700;
-  margin-bottom: 8px;
-}
-
-.tooltipBody { }
-
-.tooltipFooter {
-  margin-top: 10px;
-}
-
-.modalTitle {
-  font-size: 18px;
-  font-weight: 700;
-  margin-bottom: 10px;
-}
-
-.modalBody { }
-
-.modalFooter {
-  margin-top: 14px;
-  display: flex;
-  gap: 8px;
-  justify-content: flex-end;
-}
+.modalHeader{display:flex;align-items:center;justify-content:space-between;}
+.modalTitle{font-size:18px;font-weight:700;margin-bottom:10px;}
+.stepCounter{font-size:12px;opacity:.8;}
+.modalBody{}
+.modalFooter{margin-top:14px;display:flex;gap:8px;justify-content:flex-end;}

@@ -7,13 +7,20 @@ import styles from './CtrlcanOrbit.module.css';
  *  target: Element|null,
  *  width?: number,
  *  placement?: 'top'|'right'|'bottom'|'left'|'auto',
+ *  offset?: number,
  *  labels?: { next?:string, prev?:string, close?:string },
  *  title?: any,
  *  content: any,
  *  footer?: any,
  *  onNext: ()=>void,
  *  onPrev: ()=>void,
- *  onClose: ()=>void
+ *  onClose: ()=>void,
+ *  showPrev?: boolean,
+ *  showClose?: boolean,
+ *  stepIndex?: number,
+ *  stepCount?: number,
+ *  modalStyle?: React.CSSProperties,
+ *  modalClassName?: string
  * }} props
  */
 export function Tooltip({
@@ -21,58 +28,78 @@ export function Tooltip({
   target,
   width = 360,
   placement = 'auto',
+  offset = 12,
   labels = {},
   title,
   content,
   footer,
   onNext,
   onPrev,
-  onClose
+  onClose,
+  showPrev = true,
+  showClose = true,
+  stepIndex,
+  stepCount,
+  modalStyle,
+  modalClassName
 }) {
   const ref = useRef(null);
   const prevFocusRef = useRef(null);
   const titleId = useId();
   const bodyId = useId();
 
-
   // Positioning (tooltip)
   useLayoutEffect(() => {
     if (mode !== 'tooltip') return;
     if (!target || !ref.current) return;
-
-    const r = target.getBoundingClientRect();
     const el = ref.current;
-    const gap = 10;
-    const vw = window.innerWidth, vh = window.innerHeight;
 
     const place = (side) => {
+      const r = target.getBoundingClientRect();
+      const vw = window.innerWidth, vh = window.innerHeight;
+      const w = el.offsetWidth || width;
+      const h = el.offsetHeight || 0;
       let top = 0, left = 0;
-      if (side === 'bottom') {
-        top = r.bottom + gap;
-        left = r.left + r.width / 2 - el.offsetWidth / 2;
-      } else if (side === 'top') {
-        top = r.top - el.offsetHeight - gap;
-        left = r.left + r.width / 2 - el.offsetWidth / 2;
-      } else if (side === 'right') {
-        top = r.top + r.height / 2 - el.offsetHeight / 2;
-        left = r.right + gap;
-      } else {
-        top = r.top + r.height / 2 - el.offsetHeight / 2;
-        left = r.left - el.offsetWidth - gap;
-      }
-      top = Math.max(10, Math.min(top, vh - el.offsetHeight - 10));
-      left = Math.max(10, Math.min(left, vw - el.offsetWidth - 10));
+      if (side === 'bottom') { top = r.bottom + offset; left = r.left + r.width / 2 - w / 2; }
+      else if (side === 'top') { top = r.top - h - offset; left = r.left + r.width / 2 - w / 2; }
+      else if (side === 'right') { top = r.top + r.height / 2 - h / 2; left = r.right + offset; }
+      else { top = r.top + r.height / 2 - h / 2; left = r.left - w - offset; }
+      top = Math.max(10, Math.min(top, vh - h - 10));
+      left = Math.max(10, Math.min(left, vw - w - 10));
       el.style.top = `${top}px`;
       el.style.left = `${left}px`;
     };
 
     const tryAuto = () => {
-      const sides = ['bottom', 'top', 'right', 'left'];
-      for (const s of sides) { place(s); }
+      const sides = ['right', 'bottom', 'top', 'left'];
+      for (const s of sides) place(s);
     };
 
-    if (placement === 'auto') tryAuto(); else place(placement);
-  }, [mode, target, placement]);
+    const position = () => {
+      if (!target || !ref.current) return;
+      if (placement === 'auto') tryAuto(); else place(placement);
+    };
+
+    position();
+    const raf = requestAnimationFrame(position);
+    const onScroll = () => position();
+    const onResize = () => position();
+    window.addEventListener('scroll', onScroll, true);
+    window.addEventListener('resize', onResize);
+
+    let ro;
+    if ('ResizeObserver' in window && target) {
+      ro = new ResizeObserver(position);
+      ro.observe(target);
+    }
+
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener('scroll', onScroll, true);
+      window.removeEventListener('resize', onResize);
+      if (ro) ro.disconnect();
+    };
+  }, [mode, target, placement, offset, width]);
 
   // Focus trap + restore
   useEffect(() => {
@@ -106,7 +133,14 @@ export function Tooltip({
 
   const BodyShell = ({ children }) => (
     <>
-      {title ? <div id={titleId} className={mode === 'modal' ? styles.modalTitle : styles.tooltipTitle}>{title}</div> : null}
+      <div className={mode === 'modal' ? styles.modalHeader : styles.tooltipHeader}>
+        {title ? <div id={titleId} className={mode === 'modal' ? styles.modalTitle : styles.tooltipTitle}>{title}</div> : null}
+        {mode === 'modal' && stepIndex != null && stepCount != null && (
+          <div className={styles.stepCounter} aria-label="Step counter">
+            {stepIndex + 1}/{stepCount}
+          </div>
+        )}
+      </div>
       <div id={bodyId} className={mode === 'modal' ? styles.modalBody : styles.tooltipBody}>{children}</div>
       {footer ? <div className={mode === 'modal' ? styles.modalFooter : styles.tooltipFooter}>{footer}</div> : null}
     </>
@@ -114,16 +148,16 @@ export function Tooltip({
 
   const Buttons = () => (
     <div className={styles.tooltipActions}>
-      <button type="button" className={styles.btn} onClick={onPrev}>{labels.prev}</button>
+      {showPrev && <button type="button" className={styles.btn} onClick={onPrev}>{labels.prev}</button>}
       <button type="button" className={styles.btn} onClick={onNext}>{labels.next}</button>
-      <button type="button" className={styles.btnGhost} onClick={onClose} aria-label="Close">{labels.close}</button>
+      {showClose && <button type="button" className={styles.btnGhost} onClick={onClose} aria-label="Close">{labels.close}</button>}
     </div>
   );
 
   if (mode === 'modal') {
     return (
       <div className={styles.modalOverlay} aria-modal="true" role="dialog" aria-labelledby={title ? titleId : undefined} aria-describedby={bodyId}>
-        <div ref={ref} className={styles.modal}>
+        <div ref={ref} className={`${styles.modal} ${modalClassName || ''}`} style={modalStyle}>
           <BodyShell>{content}</BodyShell>
           {!footer && <Buttons />}
         </div>
