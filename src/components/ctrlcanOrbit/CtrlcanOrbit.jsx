@@ -181,7 +181,9 @@ function OrbitInner({ steps: inSteps, options = {}, onFinish, onCancel }) {
     close: step?.labels?.close ?? options?.tooltip?.labels?.close ?? t('close')
   };
 
-  const liveMessage = `${step?.title ? step.title + ' — ' : ''}${typeof step?.content === 'string' ? step.content : ''}`;
+  const total = steps.length;
+  const stepNum = idx + 1;
+  const liveMessage = `${t('title', 'Tour')}: ${stepNum}/${total}` + (step?.title ? ` — ${step.title}` : '');
 
   return (
     <PortalMount>
