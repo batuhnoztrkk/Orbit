@@ -2,33 +2,30 @@ import { useLayoutEffect, useRef, useState } from 'react';
 import styles from './CtrlcanOrbit.module.css';
 
 /**
- * Hedefi net bırakıp etrafı blur+dim yapan overlay.
- * İki katman kullanır: blur ve dim. Her ikisi de evenodd clip-path ile delik açar.
+ * Hedef(ler)i net bırakıp etrafı blur+dim yapan overlay.
+ * Birden fazla "delik" destekler: target + extraTargets (örn: modal).
  */
 export function Spotlight({
   target,
+  extraTargets = [],           // ← yeni: ek delikler (Element[])
   padding = 12,
   borderRadius = 12,
-  shape = 'rounded',           // 'rounded' | 'circle'
+  shape = 'rounded',            // 'rounded' | 'circle' (sadece target için)
   blur = 8,
-  dimOpacity = 0.6
+  dimOpacity = 0.6,
+  classNameBlur,
+  classNameDim,
+  extraPadding = 0,             // ← yeni: extraTargets için padding
+  extraRadius = 12              // ← yeni: extraTargets için radius
 }) {
-  const [clip, setClip] = useState('none');
+  const [clip, setClip] = useState('');
   const rafRef = useRef(0);
 
   const compute = () => {
     const vw = window.innerWidth;
     const vh = window.innerHeight;
 
-    if (!target) { setClip('none'); return; } // hedefsiz: delik yok
-
-    const r = target.getBoundingClientRect();
-    const x = Math.max(0, r.left - padding);
-    const y = Math.max(0, r.top - padding);
-    const w = Math.min(vw - x, r.width + padding * 2);
-    const h = Math.min(vh - y, r.height + padding * 2);
-
-    const outer = `M0 0 H${vw} V${vh} H0 Z`;
+    const rects = [];
 
     const roundedRectPath = (x, y, w, h, rad) => {
       const rr = Math.max(0, Math.min(rad, Math.min(w, h) / 2));
@@ -56,13 +53,37 @@ export function Spotlight({
       ].join(' ');
     };
 
-    const inner =
-      shape === 'circle'
-        ? circlePath(r.left + r.width / 2, r.top + r.height / 2, Math.max(r.width, r.height) / 2 + padding)
-        : roundedRectPath(x, y, w, h, borderRadius);
+    // 1) Target deliği
+    if (target) {
+      const r = target.getBoundingClientRect();
+      if (shape === 'circle') {
+        rects.push(circlePath(r.left + r.width / 2, r.top + r.height / 2, Math.max(r.width, r.height) / 2 + padding));
+      } else {
+        const x = Math.max(0, r.left - padding);
+        const y = Math.max(0, r.top - padding);
+        const w = Math.min(vw - x, r.width + padding * 2);
+        const h = Math.min(vh - y, r.height + padding * 2);
+        rects.push(roundedRectPath(x, y, w, h, borderRadius));
+      }
+    }
 
-    // evenodd ile donut
-    const clipPath = `path("${outer} ${inner}", "evenodd")`;
+    // 2) Ek deli̇kler (örn: modal)
+    extraTargets.forEach((el) => {
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      const x = Math.max(0, r.left - extraPadding);
+      const y = Math.max(0, r.top - extraPadding);
+      const w = Math.min(vw - x, r.width + extraPadding * 2);
+      const h = Math.min(vh - y, r.height + extraPadding * 2);
+      rects.push(roundedRectPath(x, y, w, h, extraRadius));
+    });
+
+    if (rects.length === 0) { setClip(''); return; }
+
+    const outer = `M0 0 H${vw} V${vh} H0 Z`;
+    const inner = rects.join(' ');
+    // evenodd: dış alan − (tüm delikler)
+    const clipPath = `path("evenodd, ${outer} ${inner}")`;
     setClip(clipPath);
   };
 
@@ -72,22 +93,25 @@ export function Spotlight({
     const onResize = onScroll;
     window.addEventListener('scroll', onScroll, true);
     window.addEventListener('resize', onResize);
+    const obs = [];
 
-    let ro;
-    if (target && 'ResizeObserver' in window) {
-      ro = new ResizeObserver(onScroll);
-      ro.observe(target);
+    // hedef + extraTargets değiştikçe/yeniden ölçümlenince yeniden hesapla
+    const all = [target, ...extraTargets].filter(Boolean);
+    if ('ResizeObserver' in window && all.length) {
+      const ro = new ResizeObserver(onScroll);
+      all.forEach((el) => el && ro.observe(el));
+      obs.push(ro);
     }
+
     return () => {
       window.removeEventListener('scroll', onScroll, true);
       window.removeEventListener('resize', onResize);
       cancelAnimationFrame(rafRef.current);
-      if (ro) ro.disconnect();
+      obs.forEach((ro) => ro.disconnect());
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [target, padding, borderRadius, shape]);
+  }, [target, extraTargets, padding, borderRadius, shape, extraPadding, extraRadius]);
 
-  // iki katman: önce blur, sonra dim
   const blurStyle = {
     clipPath: clip, WebkitClipPath: clip,
     WebkitBackdropFilter: `blur(${blur}px)`,
@@ -100,8 +124,16 @@ export function Spotlight({
 
   return (
     <>
-      <div className={styles.spotlightBlur} style={blurStyle} aria-hidden="true" />
-      <div className={styles.spotlightDim}  style={dimStyle}  aria-hidden="true" />
+      <div
+        className={[styles.spotlightBlur, classNameBlur].filter(Boolean).join(' ')}
+        style={blurStyle}
+        aria-hidden="true"
+      />
+      <div
+        className={[styles.spotlightDim, classNameDim].filter(Boolean).join(' ')}
+        style={dimStyle}
+        aria-hidden="true"
+      />
     </>
   );
 }

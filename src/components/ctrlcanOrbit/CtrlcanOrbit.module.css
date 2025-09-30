@@ -77,3 +77,20 @@
 .stepCounter{font-size:12px;opacity:.8;}
 .modalBody{}
 .modalFooter{margin-top:14px;display:flex;gap:8px;justify-content:flex-end;}
+
+.orbitSpotlightBlur { 
+  /* ekstra efektlerin varsa buraya yaz */
+}
+
+.orbitSpotlightDim {
+  /* background rengini override etmek istersen buraya */
+}
+
+/* Base stilleri garantiye almak için (eğer Spotlight.jsx'te birleştirmeyi yapmazsan) */
+.orbitSpotlightBlur,
+.orbitSpotlightDim {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 999999;
+}

@@ -9,3 +9,83 @@ body { margin: 0; }
   .card { background:#0b0f14; color:#e5e7eb; border-color:#1f2937; }
   .header, .nav { border-color:#1f2937; }
 }
+/* Modal kabı */
+.orbitModalShell {
+  display: flex;
+  flex-direction: column;
+  background: var(--orbit-modal-bg, #0b0f14);
+  color: var(--orbit-fg, #e6eef7);
+  box-shadow: 0 10px 40px rgba(0,0,0,0.45);
+  border: 1px solid rgba(255,255,255,0.06);
+  overflow: hidden;
+}
+
+/* Intro/Outro teması (opsiyonel farklılaşma) */
+.orbitIntro .orbitModalShell,
+.orbitOutro .orbitModalShell {
+  background: var(--orbit-intro-bg, #0b0f14);
+}
+
+/* Tooltip gövdesi (eğer tooltipClassName verdiysen) */
+.orbitTooltip {
+  background: var(--orbit-tooltip-bg, #10151c);
+  color: var(--orbit-fg, #e6eef7);
+  border: 1px solid rgba(255,255,255,0.06);
+  box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+  border-radius: 14px;
+  padding: 12px 14px;
+}
+
+/* Action bar */
+.orbitActions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;   /* ortalı butonlar */
+  align-items: center;
+  padding: 12px 16px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+
+/* Buttons */
+.orbitBtnPrimary {
+  padding: 8px 14px;
+  border-radius: 10px;
+  background: var(--orbit-accent, #0076ff);
+  color: #fff;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+}
+.orbitBtnPrimary:hover { filter: brightness(1.06); }
+.orbitBtnPrimary:active { transform: translateY(1px); }
+
+.orbitBtnSecondary {
+  padding: 8px 14px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.06);
+  color: #fff;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+}
+.orbitBtnSecondary:hover { background: rgba(255,255,255,0.1); }
+
+.orbitBtnGhost {
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: transparent;
+  color: rgba(255,255,255,0.7);
+  font-weight: 600;
+  border: 1px solid rgba(255,255,255,0.12);
+  cursor: pointer;
+}
+.orbitBtnGhost:hover { color: #fff; border-color: rgba(255,255,255,0.2); }
+
+/* Spotlight katmanları (isteğe göre) */
+.orbitSpotlightBlur {
+  /* burada istersen blend-mode verebilirsin */
+}
+.orbitSpotlightDim {
+  /* default dim’i bırak; eğer karanlık/aydınlık ayarlamak istersen:
+     background: rgba(0,0,0,0.6) !important; */
+}

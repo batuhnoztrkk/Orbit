@@ -1,16 +1,16 @@
-import { useEffect, useLayoutEffect, useRef, useId } from 'react';
+import { useEffect, useLayoutEffect, useRef, useId, forwardRef, useImperativeHandle } from 'react';
 import styles from './CtrlcanOrbit.module.css';
 
 /**
  * @param {{
- *  mode: 'tooltip'|'modal',
- *  target: Element|null,
- *  width?: number,
+ *  mode?: 'tooltip'|'modal',
+ *  target?: Element|null,
+ *  width?: number|string,
  *  placement?: 'top'|'right'|'bottom'|'left'|'auto',
  *  offset?: number,
  *  labels?: { next?:string, prev?:string, close?:string },
  *  title?: any,
- *  content: any,
+ *  content?: any,
  *  footer?: any,
  *  onNext: ()=>void,
  *  onPrev: ()=>void,
@@ -20,44 +20,66 @@ import styles from './CtrlcanOrbit.module.css';
  *  stepIndex?: number,
  *  stepCount?: number,
  *  modalStyle?: React.CSSProperties,
- *  modalClassName?: string
+ *  modalClassName?: string,
+ *  tooltipClassName?: string,
+ *  classNames?: { actions?:string, btnPrev?:string, btnNext?:string, btnClose?:string }
  * }} props
  */
-export function Tooltip({
-  mode = 'tooltip',
-  target,
-  width = 360,
-  placement = 'auto',
-  offset = 12,
-  labels = {},
-  title,
-  content,
-  footer,
-  onNext,
-  onPrev,
-  onClose,
-  showPrev = true,
-  showClose = true,
-  stepIndex,
-  stepCount,
-  modalStyle,
-  modalClassName
-}) {
-  const ref = useRef(null);
+export const Tooltip = forwardRef(function TooltipFn(props, ref) {
+  const {
+    // Genel
+    mode = 'tooltip',
+    target = null,
+
+    // Tooltip yerleşim
+    width = 360,
+    placement = 'auto',
+    offset = 12,
+
+    // İçerik/etiketler
+    labels = {},
+    title,
+    content,
+    footer,
+
+    // Aksiyonlar
+    onNext,
+    onPrev,
+    onClose,
+    showPrev = true,
+    showClose = true,
+
+    // Bilgi
+    stepIndex,
+    stepCount,
+
+    // Stil/override
+    modalStyle,
+    modalClassName,
+    tooltipClassName,
+    classNames = {}
+  } = props;
+
+  const containerRef = useRef(null);
   const prevFocusRef = useRef(null);
   const titleId = useId();
   const bodyId = useId();
 
-  // Positioning (tooltip)
+  // Dışa ref API
+  useImperativeHandle(ref, () => ({
+    getEl: () => containerRef.current
+  }), []);
+
+  // Tooltip konumlandırma
   useLayoutEffect(() => {
     if (mode !== 'tooltip') return;
-    if (!target || !ref.current) return;
-    const el = ref.current;
+    if (!target || !containerRef.current) return;
+    const el = containerRef.current;
 
     const place = (side) => {
       const r = target.getBoundingClientRect();
       const vw = window.innerWidth, vh = window.innerHeight;
-      const w = el.offsetWidth || width;
+      const w = el.offsetWidth || (typeof width === 'number' ? width : 360);
       const h = el.offsetHeight || 0;
       let top = 0, left = 0;
       if (side === 'bottom') { top = r.bottom + offset; left = r.left + r.width / 2 - w / 2; }
@@ -76,8 +98,9 @@ export function Tooltip({
     };
 
     const position = () => {
-      if (!target || !ref.current) return;
-      if (placement === 'auto') tryAuto(); else place(placement);
+      if (!target || !containerRef.current) return;
+      if (placement === 'auto') tryAuto();
+      else place(placement);
     };
 
     position();
@@ -103,9 +126,8 @@ export function Tooltip({
 
   // Focus trap + restore
   useEffect(() => {
-    const container = ref.current;
+    const container = containerRef.current;
     if (!container) return;
-
     prevFocusRef.current = document.activeElement;
     container.setAttribute('tabindex', '-1');
     container.focus();
@@ -134,30 +156,61 @@ export function Tooltip({
   const BodyShell = ({ children }) => (
     <>
       <div className={mode === 'modal' ? styles.modalHeader : styles.tooltipHeader}>
-        {title ? <div id={titleId} className={mode === 'modal' ? styles.modalTitle : styles.tooltipTitle}>{title}</div> : null}
+        {title ? (
+          <div id={titleId} className={mode === 'modal' ? styles.modalTitle : styles.tooltipTitle}>
+            {title}
+          </div>
+        ) : null}
         {mode === 'modal' && stepIndex != null && stepCount != null && (
           <div className={styles.stepCounter} aria-label="Step counter">
             {stepIndex + 1}/{stepCount}
           </div>
         )}
       </div>
-      <div id={bodyId} className={mode === 'modal' ? styles.modalBody : styles.tooltipBody}>{children}</div>
-      {footer ? <div className={mode === 'modal' ? styles.modalFooter : styles.tooltipFooter}>{footer}</div> : null}
+      <div id={bodyId} className={mode === 'modal' ? styles.modalBody : styles.tooltipBody}>
+        {children}
+      </div>
+      {footer ? (
+        <div className={mode === 'modal' ? styles.modalFooter : styles.tooltipFooter}>
+          {footer}
+        </div>
+      ) : null}
     </>
   );
 
   const Buttons = () => (
-    <div className={styles.tooltipActions}>
-      {showPrev && <button type="button" className={styles.btn} onClick={onPrev}>{labels.prev}</button>}
-      <button type="button" className={styles.btn} onClick={onNext}>{labels.next}</button>
-      {showClose && <button type="button" className={styles.btnGhost} onClick={onClose} aria-label="Close">{labels.close}</button>}
+    <div className={classNames.actions || styles.tooltipActions}>
+      {showPrev && (
+        <button type="button" className={classNames.btnPrev || styles.btn} onClick={onPrev}>
+          {labels.prev ?? 'Prev'}
+        </button>
+      )}
+      <button type="button" className={classNames.btnNext || styles.btn} onClick={onNext}>
+        {labels.next ?? 'Next'}
+      </button>
+      {showClose && (
+        <button
+          type="button"
+          className={classNames.btnClose || styles.btnGhost}
+          onClick={onClose}
+          aria-label="Close"
+        >
+          {labels.close ?? 'Close'}
+        </button>
+      )}
     </div>
   );
 
   if (mode === 'modal') {
     return (
-      <div className={styles.modalOverlay} aria-modal="true" role="dialog" aria-labelledby={title ? titleId : undefined} aria-describedby={bodyId}>
-        <div ref={ref} className={`${styles.modal} ${modalClassName || ''}`} style={modalStyle}>
+      <div
+        className={styles.modalOverlay}
+        aria-modal="true"
+        role="dialog"
+        aria-labelledby={title ? titleId : undefined}
+        aria-describedby={bodyId}
+      >
+        <div ref={containerRef} className={`${styles.modal} ${modalClassName || ''}`} style={modalStyle}>
           <BodyShell>{content}</BodyShell>
           {!footer && <Buttons />}
         </div>
@@ -165,12 +218,14 @@ export function Tooltip({
     );
   }
 
+  // string ise %/vw/vh destekli
+  const styleWidth = typeof width === 'number' ? { width } : { width };
   return (
     <div
-      ref={ref}
+      ref={containerRef}
       role="tooltip"
-      className={styles.tooltip}
-      style={{ width }}
+      className={`${styles.tooltip} ${tooltipClassName || ''}`}
+      style={styleWidth}
       aria-labelledby={title ? titleId : undefined}
       aria-describedby={bodyId}
       aria-live="polite"
@@ -179,4 +234,4 @@ export function Tooltip({
       {!footer && <Buttons />}
     </div>
   );
-}
+});
